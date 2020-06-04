@@ -1,3 +1,4 @@
+
 openapi: 3.0.1
 info:
   version: 1.1.1
@@ -5,20 +6,60 @@ info:
 paths:
   /indicatori:
     get:
-     description: ritorna tutti gli indicatori con le loro definizioni obboboa
-     responses:
+      parameters:
+      - $ref: '#/components/parameters/AcceptLanguage'
+      description: ritorna tutti gli indicatori con le loro definizioni obboboa
+      responses:
        '200':
-          content:
+         description: |-
+           elenca tutti gli indicatori
+         content:
             application/json:
               schema:
-                indicatori:
-                  type: array
-                  item:
-                    $ref: '#/components/schemas/Indicator'
+                type: object
+                properties:
+                  indicatori:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Indicator'
   /indicatori/{indicator_name}:
+    get:
+      description: Recupera le informazioni su un indicatore
+      parameters:
+      - $ref: '#/components/parameters/AcceptLanguage'
+      - name: indicator_name
+        schema:
+          type: string
+        in: path
+        required: true
+      responses:
+        "200":
+           description: Un indicatore
+           content:
+             application/json:
+               schema:
+                 $ref: '#/components/schemas/Indicator'
 
 
 components:
+  parameters:
+    AcceptLanguage:
+      description: |-
+        Language selection is based on content-negotiation.
+        The adopted schema shows the subset of all the values
+        that are allowed.
+      in: header
+      schema:
+        $ref: '#/components/schemas/Language'
+      name: Accept-Language
+      example: "it"
+    ContentLanguage:
+      description: |-
+        Language selection is based on content-negotiation
+      in: header
+      schema:
+        type: string
+      name: Content-Language
   schemas:
     Record:
       properties:
@@ -28,11 +69,13 @@ components:
           type: number
     # Under `definitions` I have schemas, so let's use CamelCase.
     LocalizedString:
-      properties:
-        language:
-          $ref: '#/components/schemas/Language'
-        value:
-          type: string
+      description: |-
+        HTTP API uses content-negotiation for localization.
+        Payload localization is a representation metadata that can
+        be negotiated and retrieved using Accept-Language and Content-Language.
+
+        It is not necessary to pass the language in the schema.
+      type: string
     PurposeName:
       # Is this a localized string?
       description: The purpose of an indicator
@@ -60,11 +103,11 @@ components:
       type: object
     Language:
       default: it
-      description: Languages that can be used for descriptions and free values
+      description: >-
+        Allowed language codes.
       enum:
       - it
       - en
-      title: Language that can be used
       type: string
     Purpose:
       title: Purpose
@@ -93,8 +136,9 @@ components:
           $ref: '#/components/schemas/PurposeName'
     Indicator:
       properties:
-        definedInLegislation:
-          description: The property models the legislation reference where the indicator
+        legislation:
+          description: |-
+            The property models the legislation reference where the indicator
             is defined (e.g., decree of Ministry of Health 30 April 2020). Since in
             OntoPiA there is no ontology that models legislation acts, we decided to
             use a simple data type property with a string where the legislation reference
