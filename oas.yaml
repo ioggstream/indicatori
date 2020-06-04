@@ -1,0 +1,137 @@
+openapi: 3.0.1
+info:
+  version: 1.1.1
+  title: bikeshed
+paths:
+  /indicatori:
+    get:
+     description: ritorna tutti gli indicatori con le loro definizioni obboboa
+     responses:
+       '200':
+          content:
+            application/json:
+              schema:
+                indicatori:
+                  type: array
+                  item:
+                    $ref: '#/components/schemas/Indicator'
+  /indicatori/{indicator_name}:
+
+
+components:
+  schemas:
+    Record:
+      properties:
+        indicatore:
+          $ref: '#/components/schemas/Indicator'
+        valore:
+          type: number
+    # Under `definitions` I have schemas, so let's use CamelCase.
+    LocalizedString:
+      properties:
+        language:
+          $ref: '#/components/schemas/Language'
+        value:
+          type: string
+    PurposeName:
+      # Is this a localized string?
+      description: The purpose of an indicator
+      allOf:
+        - $ref: '#/components/schemas/LocalizedString'
+    IndicatorType:
+      description: |-
+
+        Questo tipo di relazione è inferibile da Indicator che
+        referenzia IndicatorType quindi non è necessario
+        specificarla qui. Capiamo se c'è un modo per
+        inserire questo tipo di relazione in jsonschema
+        attraverso dei campi custom tipo
+        x-isOf: whatever.
+
+        isIndicatorTypeOf:
+          minItems: 1
+          type: array
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/Indicator'
+      properties:
+        name:
+          $ref: '#/components/schemas/PurposeName'
+      type: object
+    Language:
+      default: it
+      description: Languages that can be used for descriptions and free values
+      enum:
+      - it
+      - en
+      title: Language that can be used
+      type: string
+    Purpose:
+      title: Purpose
+      type: object
+      description: |-
+        This is the element that models the objective/purpose or goal that
+        the indicator targets. For instance, in the context of COIVD-19 indicators a
+        purpose can be the monitoring of the virsu transmission stability and resilience
+        of health care services.
+
+        Anche qui relazione inversa. Se troviamo una quadra per mappare
+        e stabilire automaticamente se mettere o meno la proprietà
+        abbiamo risolto.
+
+        Capire sempre se possiamo usare un x-bikeshed.
+        per segnare la relazione.
+          isMetByIndicator:
+          items:
+            $ref: https://w3id.org/italia/onto/Indicator
+          minItems: 1
+          type: array
+          uniqueItems: true
+
+      properties:
+        name:
+          $ref: '#/components/schemas/PurposeName'
+    Indicator:
+      properties:
+        definedInLegislation:
+          description: The property models the legislation reference where the indicator
+            is defined (e.g., decree of Ministry of Health 30 April 2020). Since in
+            OntoPiA there is no ontology that models legislation acts, we decided to
+            use a simple data type property with a string where the legislation reference
+            can be indicated.
+          allOf:
+            - $ref: '#/components/schemas/LocalizedString'
+
+        uuid:
+          type: string
+          example: 'dpr'
+        type:
+          $ref: '#/components/schemas/IndicatorType'
+        description:
+          description: description of the indicator
+          example: morti
+          allOf:
+            - $ref: '#/components/schemas/LocalizedString'
+        purposes:
+          items:
+            $ref: '#/components/schemas/Purpose'
+          minItems: 1
+          type: array
+          uniqueItems: true
+        name:
+          description: Name of the indicator
+          oneOf:
+            - $ref: '#/components/schemas/LocalizedString'
+        subIndicator:
+          items:
+            $ref: '#/components/schemas/Indicator'
+          minItems: 1
+          type: array
+          uniqueItems: true
+        superIndicator:
+          items:
+            $ref: '#/components/schemas/Indicator'
+          minItems: 1
+          type: array
+          uniqueItems: true
+
