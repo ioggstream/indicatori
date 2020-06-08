@@ -3,7 +3,29 @@ openapi: 3.0.1
 info:
   version: 1.1.1
   title: bikeshed
+  description: |-
+    Nota sui formati:
+
+     - il passaggio tra csv e json può richiedere la gestione applicativa
+       dei campi nan
 paths:
+  /osservazioni/regioni/umbria:
+    get:
+      parameters:
+      - $ref: '#/components/parameters/AcceptLanguage'
+      description: ritorna tutti gli indicatori con le loro definizioni obboboa
+      responses:
+       '200':
+         description: |-
+           elenca tutti gli indicatori
+         content:
+            text/csv: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Osservazioni'
+              examples:
+                OsservazioneRegione:
+                  $ref: '#/components/examples/OsservazioniRegione'
   /indicatori:
     get:
       parameters:
@@ -42,6 +64,38 @@ paths:
 
 
 components:
+  examples:
+    OsservazioneCompleta:
+      summary: Una osservazione con tutti i dettagli possibile
+      value:
+        value: 10
+        parameter: https://w3id.org/italia/data/indicator-parameter/1-1-1-1
+        generationTime: 2020-05-20
+        measurement_unit: gauge
+    OsservazioniRegioneCSV:
+      summary: Osservazioni su un singolo indicatore
+      value: |-
+        generationTime,positive-cases-with-date
+        2020-05-20, 10
+        2020-05-21, 11
+        2020-05-22, 8
+    OsservazioniRegione:
+        summary: Osservazioni su un singolo indicatore.
+        value:
+          osservazioni:
+          - value: 10
+            parameter: positive-cases-with-date
+            generationTime: 2020-05-20
+          - value: 11
+            parameter: positive-cases-with-date
+            generationTime: 2020-05-21
+          - value: 8
+            parameter: positive-cases-with-date
+            generationTime: 2020-05-22
+          - $ref: '#/components/examples/OsservazioneCompleta/value'
+
+
+
   parameters:
     AcceptLanguage:
       description: |-
@@ -61,6 +115,14 @@ components:
         type: string
       name: Content-Language
   schemas:
+    Osservazioni:
+      type: object
+      properties:
+        osservazioni:
+          type: array
+          items:
+            $ref: '#/components/schemas/Observation'
+
     Record:
       properties:
         indicatore:
@@ -109,6 +171,36 @@ components:
       - it
       - en
       type: string
+    Observation:
+      required:
+      - parameter
+      - value
+      properties:
+        generationTime:
+          type: string
+          format: date
+          example: 2020-05-26
+        parameter:
+          type: string
+          format: url
+          example: https://w3id.org/italia/data/observation-parameter/positive-cases-with-date
+        value:
+          type: number
+          example: 10
+        measurement_unit:
+          $ref: '#/components/schemas/MeasurementUnit'
+      example:
+        parameter: positive-cases-with-date
+        value: 10
+
+    MeasurementUnit:
+      x-onto: https://w3id.org/italia/data/measurement-unit
+      type: string
+      enum:
+      - percentage
+      - gauge
+      description: |-
+        See https://w3id.org/italia/data/measurement-unit for a vocabulary
     Purpose:
       title: Purpose
       type: object
@@ -135,8 +227,10 @@ components:
         name:
           $ref: '#/components/schemas/PurposeName'
     Indicator:
+      x-onto: https://w3id.org/italia/onto/Indicator
       properties:
         legislation:
+          x-onto: https://w3id.org/italia/onto/Indicator/definedInLegislation
           description: |-
             The property models the legislation reference where the indicator
             is defined (e.g., decree of Ministry of Health 30 April 2020). Since in
