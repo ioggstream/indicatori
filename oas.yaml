@@ -14,17 +14,46 @@ servers:
     development server
   x-sandbox: true
 paths:
-  /observations/regioni/umbria:
+  /observations/{feature_type}/{feature_id}:
     get:
       parameters:
       - $ref: '#/components/parameters/AcceptLanguage'
+      - name: feature_type
+        description: |-
+          La feature of interest per le osservazioni.
+          In questo caso sono unità amministrative, ma
+          possiamo estenderle a diversi modelli.
+        schema:
+          type: string
+          enum:
+          - regioni
+          - comuni
+          - province
+          example: regioni
+        in: path
+        required: true
+      - name: feature_id
+        description: |-
+          l'identificativo della feature: per le unità amministrative
+          sono i codici Istat. Nell'esempio indichiamo l'Umbria
+        schema:
+          type: string
+          example: 10
+        in: path
+        required: true
       - name: embed
         schema:
           type: string
         in: query
       description: |-
         ritorna le osservazioni in base ai parametri e
-        all'unità amministrativa.
+        alla Feature of Interest che in questo caso è data
+        dalla unità amministrativa.
+
+        E' possibile aggiungere ulteriori feature of interest.
+
+        Poiché la FoI è una proprietà dell'Osservazione è possibile
+        richiedere l'espansione della FoI anche nell'Osservazione.
       responses:
        '200':
          description: |-
@@ -42,7 +71,9 @@ paths:
 
   /observation-parameters/{parameter_id}:
     get:
-      description: Recupera le informazioni su un parameter
+      description: |-
+        Recupera le informazioni su un parameter indicando
+        l'esatta semantica.
       parameters:
       - $ref: '#/components/parameters/AcceptLanguage'
       - name: parameter_id
@@ -62,12 +93,20 @@ paths:
 components:
 
   examples:
+    GeoJsonData: &GeoJsonData
+      $ref: https://ioggstream.github.io/api-confini-amministrativi/2020-01-01/generalizzata/comune/002082.geojson
+    GeoJsonObservation:
+      <<: *GeoJsonData
+      properties:
+        $ref: '#/components/examples/OsservazioniRegione/value'
     csv_short:
       summary: CSV Comune short
       value: |-
         phenomenon_time,generation_time,ricoverati_con_sintomi,terapia_intensiva,totale_ospedalizzati,isolamento_domiciliare,totale_positivi,variazione_totale_positivi,nuovi_positivi,dimessi_guariti,deceduti,totale_casi,tamponi,casi_testati
         "2020-05-26","2020-05-20","076063",231,9,240,1369,1609,-62,4,1132,366,3107,48903,34428
-
+    regione_completo:
+      summary: Osservazioni complete di una regione
+      value: {}
     ObservationShort:
       summary: a single, short observation
       value: &ObservationShort
@@ -149,14 +188,16 @@ components:
               $ref: '#/components/examples/csv_short'
         application/json:
           schema:
-            $ref: '#/components/schemas/Data'
+            $ref: '#/components/schemas/Osservazioni'
           examples:
             regione_compleo:
               $ref: '#/components/examples/regione_completo'
         application/geo+json:
           schema:
             $ref: '#/components/schemas/GeoJsonData'
-
+          examples:
+            geojson:
+              $ref: '#/components/examples/GeoJsonObservation'
 
   schemas:
     GeoJsonFeature:
@@ -166,7 +207,9 @@ components:
         - $ref: '#/components/schemas/GeoJsonFeature'
         - properties:
             properties:
-              $ref: '#/components/schemas/Data'
+              $ref: '#/components/schemas/Osservazioni'
+      example:
+        $ref: '#/components/examples/GeoJsonObservation'
 
     Osservazioni:
       type: object
@@ -203,12 +246,6 @@ components:
         name: >-
           casi sintomatici con data inizio sintomi
 
-    Record:
-      properties:
-        indicatore:
-          $ref: '#/components/schemas/Indicator'
-        valore:
-          type: number
     # Under `definitions` I have schemas, so let's use CamelCase.
     LocalizedString:
       description: |-
@@ -218,31 +255,6 @@ components:
 
         It is not necessary to pass the language in the schema.
       type: string
-    PurposeName:
-      # Is this a localized string?
-      description: The purpose of an indicator
-      allOf:
-        - $ref: '#/components/schemas/LocalizedString'
-    IndicatorType:
-      description: |-
-
-        Questo tipo di relazione è inferibile da Indicator che
-        referenzia IndicatorType quindi non è necessario
-        specificarla qui. Capiamo se c'è un modo per
-        inserire questo tipo di relazione in jsonschema
-        attraverso dei campi custom tipo
-        x-isOf: whatever.
-
-        isIndicatorTypeOf:
-          minItems: 1
-          type: array
-          uniqueItems: true
-          items:
-            $ref: '#/components/schemas/Indicator'
-      properties:
-        name:
-          $ref: '#/components/schemas/PurposeName'
-      type: object
     Language:
       default: it
       description: >-
@@ -256,7 +268,6 @@ components:
       additionalProperties: true
       description: |-
         Una osservazione: quali campi sono interdipendenti?
-
       required:
       - parameter_id
       - value
@@ -311,77 +322,6 @@ components:
       - gauge
       description: |-
         See https://w3id.org/italia/data/measurement-unit for a vocabulary
-    Purpose:
-      title: Purpose
-      type: object
-      description: |-
-        This is the element that models the objective/purpose or goal that
-        the indicator targets. For instance, in the context of COIVD-19 indicators a
-        purpose can be the monitoring of the virsu transmission stability and resilience
-        of health care services.
-
-        Anche qui relazione inversa. Se troviamo una quadra per mappare
-        e stabilire automaticamente se mettere o meno la proprietà
-        abbiamo risolto.
-
-        Capire sempre se possiamo usare un x-bikeshed.
-        per segnare la relazione.
-          isMetByIndicator:
-          items:
-            $ref: https://w3id.org/italia/onto/Indicator
-          minItems: 1
-          type: array
-          uniqueItems: true
-
-      properties:
-        name:
-          $ref: '#/components/schemas/PurposeName'
-    Indicator:
-      x-onto: https://w3id.org/italia/onto/Indicator
-      properties:
-        legislation:
-          x-onto: https://w3id.org/italia/onto/Indicator/definedInLegislation
-          description: |-
-            The property models the legislation reference where the indicator
-            is defined (e.g., decree of Ministry of Health 30 April 2020). Since in
-            OntoPiA there is no ontology that models legislation acts, we decided to
-            use a simple data type property with a string where the legislation reference
-            can be indicated.
-          allOf:
-            - $ref: '#/components/schemas/LocalizedString'
-
-        uuid:
-          type: string
-          example: 'dpr'
-        type:
-          $ref: '#/components/schemas/IndicatorType'
-        description:
-          description: description of the indicator
-          example: morti
-          allOf:
-            - $ref: '#/components/schemas/LocalizedString'
-        purposes:
-          items:
-            $ref: '#/components/schemas/Purpose'
-          minItems: 1
-          type: array
-          uniqueItems: true
-        name:
-          description: Name of the indicator
-          oneOf:
-            - $ref: '#/components/schemas/LocalizedString'
-        subIndicator:
-          items:
-            $ref: '#/components/schemas/Indicator'
-          minItems: 1
-          type: array
-          uniqueItems: true
-        superIndicator:
-          items:
-            $ref: '#/components/schemas/Indicator'
-          minItems: 1
-          type: array
-          uniqueItems: true
 
     Location:
       type: object
