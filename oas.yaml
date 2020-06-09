@@ -1,100 +1,123 @@
-
+                  
 openapi: 3.0.1
 info:
   version: 1.1.1
   title: bikeshed
   description: |-
     Nota sui formati:
-
+    
      - il passaggio tra csv e json può richiedere la gestione applicativa
        dei campi nan
+servers:
+- url: https://localhost/covid-19/v1
+  description: |-
+    development server
+  x-sandbox: true
 paths:
-  /osservazioni/regioni/umbria:
+  /observations/regioni/umbria:
     get:
       parameters:
       - $ref: '#/components/parameters/AcceptLanguage'
-      description: ritorna tutti gli indicatori con le loro definizioni obboboa
+      - name: embed
+        schema:
+          type: string
+        in: query
+      description: |-
+        ritorna le osservazioni in base ai parametri e
+        all'unità amministrativa.
       responses:
        '200':
          description: |-
-           elenca tutti gli indicatori
+           elenca le osservazioni con le parametri
          content:
-            text/csv: {}
             application/json:
               schema:
                 $ref: '#/components/schemas/Osservazioni'
               examples:
                 OsservazioneRegione:
                   $ref: '#/components/examples/OsservazioniRegione'
-  /indicatori:
+            text/csv: {}
+            application/geo+json:
+              schema: {}
+
+  /observation-parameters/{parameter_id}:
     get:
+      description: Recupera le informazioni su un parameter
       parameters:
       - $ref: '#/components/parameters/AcceptLanguage'
-      description: ritorna tutti gli indicatori con le loro definizioni obboboa
-      responses:
-       '200':
-         description: |-
-           elenca tutti gli indicatori
-         content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  indicatori:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Indicator'
-  /indicatori/{indicator_name}:
-    get:
-      description: Recupera le informazioni su un indicatore
-      parameters:
-      - $ref: '#/components/parameters/AcceptLanguage'
-      - name: indicator_name
+      - name: parameter_id
         schema:
           type: string
         in: path
         required: true
       responses:
         "200":
-           description: Un indicatore
+           description: Un parametro
            content:
              application/json:
                schema:
-                 $ref: '#/components/schemas/Indicator'
+                 $ref: '#/components/schemas/ObservationParameter'
 
 
 components:
+
   examples:
-    OsservazioneCompleta:
+    csv_short:
+      summary: CSV Comune short
+      value: |-
+        phenomenon_time,generation_time,ricoverati_con_sintomi,terapia_intensiva,totale_ospedalizzati,isolamento_domiciliare,totale_positivi,variazione_totale_positivi,nuovi_positivi,dimessi_guariti,deceduti,totale_casi,tamponi,casi_testati
+        "2020-05-26","2020-05-20","076063",231,9,240,1369,1609,-62,4,1132,366,3107,48903,34428
+
+    ObservationShort:
+      summary: a single, short observation
+      value: &ObservationShort
+        id: https://w3id.org/italia/data/observation/A1
+        phenomenon_time: 2020-05-26
+        parameter_id: positive-cases-with-date
+        feature_of_interest_id: patient
+        value: 10
+        value_measurement_unit: people
+    ObservationEmbed:
+      summary: an Observation with _embed fields
+      value:
+        <<: *ObservationShort
+        _embedded:
+          parameter:
+              '@id': https://w3id.org/italia/data/observation-parameter/positive-cases-with-date
+              name: casi sintomatici con data inizio sintomi
+          feature_of_interest:
+            name: Paziente
+            '@id': https://w3id.org/italia/data/feature-of-interest/patient
+    OsservazioneCompletaA1:
       summary: Una osservazione con tutti i dettagli possibile
       value:
-        value: 10
-        parameter: https://w3id.org/italia/data/indicator-parameter/1-1-1-1
-        generationTime: 2020-05-20
-        measurement_unit: gauge
+        $ref: '#/components/examples/ObservationEmbed/value'
     OsservazioniRegioneCSV:
-      summary: Osservazioni su un singolo indicatore
+      summary: Osservazioni su un singolo parametro
       value: |-
-        generationTime,positive-cases-with-date
+        phenomenon_time,positive-cases-with-date
         2020-05-20, 10
         2020-05-21, 11
         2020-05-22, 8
     OsservazioniRegione:
-        summary: Osservazioni su un singolo indicatore.
+        summary: Osservazioni su un singolo parametro.
         value:
           osservazioni:
           - value: 10
-            parameter: positive-cases-with-date
-            generationTime: 2020-05-20
+            parameter_id: positive-cases-with-date
+            generation_time: "2020-05-20"
+            phenomenon_time: "2020-05-20"
           - value: 11
-            parameter: positive-cases-with-date
-            generationTime: 2020-05-21
+            parameter_id: positive-cases-with-date
+            generation_time: "2020-05-21"
+            phenomenon_time: "2020-05-21"
+            modified: "2020-05-21"
           - value: 8
             parameter: positive-cases-with-date
-            generationTime: 2020-05-22
-          - $ref: '#/components/examples/OsservazioneCompleta/value'
-
-
+            generation_time: "2020-05-22"
+            phenomenon_time: "2020-05-22"
+            modified: "2020-05-22"
+          - $ref: '#/components/examples/OsservazioneCompletaA1/value'
 
   parameters:
     AcceptLanguage:
@@ -114,14 +137,71 @@ components:
       schema:
         type: string
       name: Content-Language
+  responses:
+    Osservazioni:
+      description: I dati vengono ritornati correttamente.
+      content:
+        application/csv:
+          schema:
+            {}
+          examples:
+            csv_short:
+              $ref: '#/components/examples/csv_short'
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Data'
+          examples:
+            regione_compleo:
+              $ref: '#/components/examples/regione_completo'
+        application/geo+json:
+          schema:
+            $ref: '#/components/schemas/GeoJsonData'
+
+
   schemas:
+    GeoJsonFeature:
+      $ref: 'https://geojson.org/schema/Feature.json'
+    GeoJsonData:
+      allOf:
+        - $ref: '#/components/schemas/GeoJsonFeature'
+        - properties:
+            properties:
+              $ref: '#/components/schemas/Data'
+
     Osservazioni:
       type: object
       properties:
-        osservazioni:
+        location:
+          $ref: '#/components/schemas/Location'
+        items:
           type: array
           items:
             $ref: '#/components/schemas/Observation'
+
+    ObservationParameter:
+      x-onto: https://w3id.org/italia/onto/IoT/ObservationParameter
+      description: |-
+        Rappresenta un parametro (proprietà) dell'osservazione di una caratteristica di interesse. Per esempio, se diciamo che la temperatura della cucina è di 28 gradi celsius, la temperatura rappresenta l'attributo osservato.
+      properties:
+        "@id":
+          type: string
+          format: url
+        id:
+          type: string
+          description: a short string representing the parameter in a given namespace
+        name:
+          type: string
+          description: |-
+            a long description of a parameter
+        description:
+          type: string
+          description: |-
+            a very long and detailed description for a parameter.
+      example:
+        "@id": https://w3id.org/italia/data/indicator-parameter/1-1-1-1
+        id: 1-1-1-1
+        name: >-
+          casi sintomatici con data inizio sintomi
 
     Record:
       properties:
@@ -172,26 +252,56 @@ components:
       - en
       type: string
     Observation:
+      type: object
+      additionalProperties: true
+      description: |-
+        Una osservazione: quali campi sono interdipendenti?
+
       required:
-      - parameter
+      - parameter_id
       - value
+      - phenomenon_time
       properties:
-        generationTime:
-          type: string
-          format: date
-          example: 2020-05-26
-        parameter:
+        uuid:
           type: string
           format: url
-          example: https://w3id.org/italia/data/observation-parameter/positive-cases-with-date
+        phenomenon_time:
+          type: string
+          format: date-time
+          example: 2020-05-26
+        modified:
+          type: string
+          format: date-time
+          example: 2020-05-26
+        generation_time:
+          type: string
+          format: date-time
+          example: 2020-05-26
+        feature_of_interest_id:
+          type: string
+          description: |-
+            The observed feature.
+          format: url
+        parameter_id:
+          type: string
+          format: url
         value:
           type: number
           example: 10
-        measurement_unit:
-          $ref: '#/components/schemas/MeasurementUnit'
+        value_measurement_unit:
+              $ref: '#/components/schemas/MeasurementUnit'
       example:
-        parameter: positive-cases-with-date
+        id: https://w3id.org/italia/data/observation/A1
+        phenomenon_time: 2020-05-26
+        parameter_id: positive-cases-with-date
+        feature_of_interest_id: patient
         value: 10
+        value_measurement_unit: unit
+        _embedded:
+          parameter:
+              '@id': https://w3id.org/italia/data/observation-parameter/positive-cases-with-date
+              name: casi sintomatici con data inizio sintomi
+
 
     MeasurementUnit:
       x-onto: https://w3id.org/italia/data/measurement-unit
@@ -273,3 +383,54 @@ components:
           type: array
           uniqueItems: true
 
+    Location:
+      type: object
+      description: The root schema comprises the entire JSON document.
+      example:
+        codice_stato: ITA
+        nome_stato: Italia
+        codice_regione: '17'
+        denominazione_regione: Basilicata
+        codice_provincia: '076'
+        denominazione_provincia: Potenza
+        sigla_provincia: PZ
+        denominazione_comune: Potenza
+        codice_comune: '076063'
+      required:
+        - codice_stato
+        - codice_regione
+        - codice_provincia
+        - codice_comune
+      additionalProperties: true
+      properties:
+        codice_stato:
+          type: string
+          example: ITA
+          description: >-
+            vedi
+            https://github.com/italia/daf-ontologie-vocabolari-controllati/blob/master/VocabolariControllati/territorial-classifications/countries/italy/italy.ttl
+        nome_stato:
+          type: string
+          example: Italia
+        codice_regione:
+          type: string
+          example: '17'
+        denominazione_regione:
+          type: string
+          example: Basilicata
+        codice_provincia:
+          type: string
+          title: The codice_provincia schema
+          example: '076'
+        denominazione_provincia:
+          type: string
+          example: Potenza
+        sigla_provincia:
+          type: string
+          example: PZ
+        denominazione_comune:
+          type: string
+          example: Potenza
+        codice_comune:
+          type: string
+          example: '076063'
