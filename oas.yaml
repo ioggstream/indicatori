@@ -23,6 +23,12 @@ paths:
           La feature of interest per le osservazioni.
           In questo caso sono unità amministrative, ma
           possiamo estenderle a diversi modelli.
+
+          Per scelta non utilizziamo un'alberatura gerarchica
+          tra unità amministrative.
+
+          Q: Come recupero i dati di tutte le province
+             di una regione?
         schema:
           type: string
           enum:
@@ -35,10 +41,13 @@ paths:
       - name: unita_amministrativa_id
         description: |-
           l'identificativo della feature: per le unità amministrative
-          sono i codici Istat. Nell'esempio indichiamo l'Umbria
+          sono i codici Istat. Nell'esempio indichiamo l'Umbria.
         schema:
           type: string
-          example: 10
+        examples:
+          Umbria:
+            summary: Umbria
+            value: 10
         in: path
         required: true
       - name: embed
@@ -60,9 +69,7 @@ paths:
         schema:
           type: array
           items:
-            type: string
-            enum:
-              -
+            $ref: '#/components/schemas/ObservationParameterId'
       description: |-
         Ritorna le osservazioni associate ad un'unità amministrativa.
       responses:
@@ -74,12 +81,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/Osservazioni'
               examples:
-                OsservazioneRegione:
+                Regione:
                   $ref: '#/components/examples/OsservazioniRegione'
-            text/csv: {}
+            text/csv:
+              examples:
+                ComuneCSV:
+                  $ref: '#/components/examples/OsservazioniComuneCSV'
+                RegioneCSV:
+                  $ref: '#/components/examples/OsservazioniRegioneCSV'
             application/geo+json:
-              schema: {}
-
+              schema:
+                $ref: '#/components/schemas/GeoJsonData'
+              examples:
+                ComuneGeo:
+                  $ref: '#/components/examples/GeoJsonObservation'
   /observation-parameters/{parameter_id}:
     get:
       description: |-
@@ -89,7 +104,7 @@ paths:
       - $ref: '#/components/parameters/AcceptLanguage'
       - name: parameter_id
         schema:
-          type: string
+          $ref: '#/components/schemas/ObservationParameterId'
         in: path
         required: true
       responses:
@@ -104,13 +119,25 @@ paths:
 components:
 
   examples:
+    UnitaAmministrativa:
+      summary: Una unità amministrativa
+      value:
+        codice_stato: ITA
+        nome_stato: Italia
+        codice_regione: '17'
+        denominazione_regione: Basilicata
+        codice_provincia: '076'
+        denominazione_provincia: Potenza
+        sigla_provincia: PZ
+        denominazione_comune: Potenza
+        codice_comune: '076063'
     GeoJsonData: &GeoJsonData
       $ref: https://ioggstream.github.io/api-confini-amministrativi/2020-01-01/generalizzata/comune/002082.geojson
     GeoJsonObservation:
       <<: *GeoJsonData
       properties:
         $ref: '#/components/examples/OsservazioniRegione/value'
-    csv_short:
+    OsservazioniComuneCSV:
       summary: CSV Comune short
       value: |-
         phenomenon_time,generation_time,ricoverati_con_sintomi,terapia_intensiva,totale_ospedalizzati,isolamento_domiciliare,totale_positivi,variazione_totale_positivi,nuovi_positivi,dimessi_guariti,deceduti,totale_casi,tamponi,casi_testati
@@ -121,7 +148,6 @@ components:
     ObservationShort:
       summary: a single, short observation
       value: &ObservationShort
-        id: https://w3id.org/italia/data/observation/A1
         phenomenon_time: 2020-05-26
         parameter_id: positive-cases-with-date
         feature_of_interest_id: patient
@@ -145,21 +171,39 @@ components:
     OsservazioniRegioneCSV:
       summary: Osservazioni su un singolo parametro
       value: |-
-        phenomenon_time,positive-cases-with-date
-        2020-05-20, 10
-        2020-05-21, 11
-        2020-05-22, 8
+        phenomenon_time,positive-cases-with-date,in-intensive-care,codice_regione,denominazione_regione
+        2020-05-20, 10, 4,10,Umbria
+        2020-05-21, 11, 3,10,Umbria
+        2020-05-22, 8, 5,10,Umbria
+    OsservazioniComuneCSV:
+      summary: Osservazioni su un singolo parametro
+      value: |-
+        phenomenon_time,positive-cases-with-date,in-intensive-care,\
+          codice_regione,denominazione_regione,\
+          codice_provincia,denominazione_provincia,\
+          codice_comune,denominazione_comune
+        2020-05-20, 10, 4,10,Umbria,054,Perugia,054039,Perugia
+        2020-05-21, 11, 3,10,Umbria,054,Perugia,054039,Perugia
+        2020-05-22, 8, 5,10,Umbria,054,Perugia,054039,Perugia
+
     OsservazioniRegione:
-        summary: Osservazioni su un singolo parametro.
-        value:
+        summary: Osservazioni su una singola unità amministrativa.
+        value: &OsservazioniRegione
+          unita_amministrativa:
+            $ref: '#/components/examples/UnitaAmministrativa/value'
           osservazioni:
-          - value: 10
-            parameter_id: positive-cases-with-date
-            generation_time: "2020-05-20"
+          - value: 4
+            parameter_id: in-intensive-care
+            phenomenon_time: "2020-05-20"
+          - value: 3
+            parameter_id: in-intensive-care
+            phenomenon_time: "2020-05-21"
+            modified: "2020-05-21"
+          - value: 5
+            parameter_id: in-intensive-care
             phenomenon_time: "2020-05-20"
           - value: 11
             parameter_id: positive-cases-with-date
-            generation_time: "2020-05-21"
             phenomenon_time: "2020-05-21"
             modified: "2020-05-21"
           - value: 8
@@ -168,6 +212,14 @@ components:
             phenomenon_time: "2020-05-22"
             modified: "2020-05-22"
           - $ref: '#/components/examples/OsservazioneCompletaA1/value'
+    OsservazioniRegioneGeo:
+      summary: geojson embedded
+      value:
+        type: Feature
+        geometry:
+          $ref: 'https://ioggstream.github.io/api-confini-amministrativi/2020-01-01/generalizzata/comune/002082.geojson#/geometry'
+        properties:
+          <<: *OsservazioniRegione
 
   parameters:
     AcceptLanguage:
@@ -180,22 +232,16 @@ components:
         $ref: '#/components/schemas/Language'
       name: Accept-Language
       example: "it"
-  headers:
-    Content-Language:
-      description: |-
-        Language selection is based on content-negotiation
-      schema:
-        type: string
   responses:
     Osservazioni:
       description: I dati vengono ritornati correttamente.
       content:
         application/csv:
           schema:
-            {}
+            type: object
           examples:
-            csv_short:
-              $ref: '#/components/examples/csv_short'
+            OsservazioniComuneCSV:
+              $ref: '#/components/examples/OsservazioniComuneCSV'
         application/json:
           schema:
             $ref: '#/components/schemas/Osservazioni'
@@ -223,29 +269,34 @@ components:
 
     Osservazioni:
       type: object
+      description: |-
+        Un oggetto contenente una serie di osservazioni.
       properties:
         location:
-          $ref: '#/components/schemas/Location'
+          $ref: '#/components/schemas/UnitaAmministrativa'
         items:
           type: array
           items:
             $ref: '#/components/schemas/Observation'
 
+    ObservationParameterId:
+          type: string
+          description: a short string representing the parameter in a given namespace
+          enum: [positive-cases-with-date, hospitalized-with-symptoms,in-intensive-care,totale_ospedalizzati,
+                 isolamento_domiciliare,totale_positivi,variazione_totale_positivi,nuovi_positivi,dimessi_guariti,
+                 deceduti,totale_casi,tamponi,casi_testati]
     ObservationParameter:
       x-onto: https://w3id.org/italia/onto/IoT/ObservationParameter
       description: |-
-        Rappresenta un parametro (proprietà) dell'osservazione di una caratteristica di interesse. Per esempio, se diciamo che la temperatura della cucina è di 28 gradi celsius, la temperatura rappresenta l'attributo osservato.
+        Rappresenta un parametro (proprietà) dell'osservazione
+        di una caratteristica di interesse. Per esempio, se diciamo che
+        la temperatura della cucina è di 28 gradi celsius, la temperatura rappresenta l'attributo osservato.
       properties:
         "@id":
           type: string
           format: url
         id:
-          type: string
-          description: a short string representing the parameter in a given namespace
-          enum: [positive-cases-with-date, ricoverati_con_sintomi,terapia_intensiva,totale_ospedalizzati,
-                 isolamento_domiciliare,totale_positivi,variazione_totale_positivi,nuovi_positivi,dimessi_guariti,
-                 deceduti,totale_casi,tamponi,casi_testati]
-
+          $ref: '#/components/schemas/ObservationParameterId'
         name:
           type: string
           description: |-
@@ -259,16 +310,6 @@ components:
         id: positive-cases-with-date
         name: >-
           casi sintomatici con data inizio sintomi
-
-    # Under `definitions` I have schemas, so let's use CamelCase.
-    LocalizedString:
-      description: |-
-        HTTP API uses content-negotiation for localization.
-        Payload localization is a representation metadata that can
-        be negotiated and retrieved using Accept-Language and Content-Language.
-
-        It is not necessary to pass the language in the schema.
-      type: string
     Language:
       default: it
       description: >-
@@ -337,9 +378,10 @@ components:
       description: |-
         See https://w3id.org/italia/data/measurement-unit for a vocabulary
 
-    Location:
+    UnitaAmministrativa:
       type: object
-      description: The root schema comprises the entire JSON document.
+      description: |-
+        Una unità amministrativa con la sua descrizione.
       example:
         codice_stato: ITA
         nome_stato: Italia
@@ -353,8 +395,6 @@ components:
       required:
         - codice_stato
         - codice_regione
-        - codice_provincia
-        - codice_comune
       additionalProperties: true
       properties:
         codice_stato:
@@ -374,7 +414,6 @@ components:
           example: Basilicata
         codice_provincia:
           type: string
-          title: The codice_provincia schema
           example: '076'
         denominazione_provincia:
           type: string
@@ -387,4 +426,6 @@ components:
           example: Potenza
         codice_comune:
           type: string
+          description: |-
+            Codice Istat alfanumerico del comune.
           example: '076063'
