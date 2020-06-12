@@ -93,8 +93,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/GeoJsonData'
               examples:
-                ComuneGeo:
-                  $ref: '#/components/examples/GeoJsonObservation'
+                RegioneGeo:
+                  $ref: '#/components/examples/OsservazioniRegioneGeo'
   /observation-parameters/{parameter_id}:
     get:
       description: |-
@@ -134,10 +134,13 @@ components:
     GeoJsonData: &GeoJsonData
       $ref: https://ioggstream.github.io/api-confini-amministrativi/2020-01-01/generalizzata/comune/002082.geojson
     GeoJsonObservation:
-      <<: *GeoJsonData
-      properties:
-        $ref: '#/components/examples/OsservazioniRegione/value'
-    OsservazioniComuneCSV:
+      summary: embedded geojson
+      value:
+        type: Feature
+        geometry: {}
+        properties:
+          $ref: '#/components/examples/OsservazioniRegione/value'
+    OsservazioniComuneAllCSV:
       summary: CSV Comune short
       value: |-
         phenomenon_time,generation_time,ricoverati_con_sintomi,terapia_intensiva,totale_ospedalizzati,isolamento_domiciliare,totale_positivi,variazione_totale_positivi,nuovi_positivi,dimessi_guariti,deceduti,totale_casi,tamponi,casi_testati
@@ -216,8 +219,7 @@ components:
       summary: geojson embedded
       value:
         type: Feature
-        geometry:
-          $ref: 'https://ioggstream.github.io/api-confini-amministrativi/2020-01-01/generalizzata/comune/002082.geojson#/geometry'
+        geometry: {}
         properties:
           <<: *OsservazioniRegione
 
