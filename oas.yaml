@@ -14,11 +14,11 @@ servers:
     development server
   x-sandbox: true
 paths:
-  /observations/{feature_type}/{feature_id}:
+  /observations/unita-amministrativa/{unita_amministrativa}/{unita_amministrativa_id}:
     get:
       parameters:
       - $ref: '#/components/parameters/AcceptLanguage'
-      - name: feature_type
+      - name: unita_amministrativa
         description: |-
           La feature of interest per le osservazioni.
           In questo caso sono unità amministrative, ma
@@ -32,7 +32,7 @@ paths:
           example: regioni
         in: path
         required: true
-      - name: feature_id
+      - name: unita_amministrativa_id
         description: |-
           l'identificativo della feature: per le unità amministrative
           sono i codici Istat. Nell'esempio indichiamo l'Umbria
@@ -45,19 +45,30 @@ paths:
         schema:
           type: string
         in: query
+      - name: date_start
+        in: query
+        schema:
+          type: string
+          format: date-time
+      - name: date_end
+        in: query
+        schema:
+          type: string
+          format: date-time
+      - name: parameter_ids
+        in: query
+        schema:
+          type: array
+          items:
+            type: string
+            enum:
+              -
       description: |-
-        ritorna le osservazioni in base ai parametri e
-        alla Feature of Interest che in questo caso è data
-        dalla unità amministrativa.
-
-        E' possibile aggiungere ulteriori feature of interest.
-
-        Poiché la FoI è una proprietà dell'Osservazione è possibile
-        richiedere l'espansione della FoI anche nell'Osservazione.
+        Ritorna le osservazioni associate ad un'unità amministrativa.
       responses:
        '200':
          description: |-
-           elenca le osservazioni con le parametri
+           elenca le osservazioni con i parametri
          content:
             application/json:
               schema:
@@ -232,6 +243,10 @@ components:
         id:
           type: string
           description: a short string representing the parameter in a given namespace
+          enum: [positive-cases-with-date, ricoverati_con_sintomi,terapia_intensiva,totale_ospedalizzati,
+                 isolamento_domiciliare,totale_positivi,variazione_totale_positivi,nuovi_positivi,dimessi_guariti,
+                 deceduti,totale_casi,tamponi,casi_testati]
+
         name:
           type: string
           description: |-
@@ -241,8 +256,8 @@ components:
           description: |-
             a very long and detailed description for a parameter.
       example:
-        "@id": https://w3id.org/italia/data/indicator-parameter/1-1-1-1
-        id: 1-1-1-1
+        "@id": https://w3id.org/italia/data/observation-parameter/positive-cases-with-date
+        id: positive-cases-with-date
         name: >-
           casi sintomatici con data inizio sintomi
 
