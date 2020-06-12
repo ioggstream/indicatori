@@ -180,13 +180,12 @@ components:
         $ref: '#/components/schemas/Language'
       name: Accept-Language
       example: "it"
-    ContentLanguage:
+  headers:
+    Content-Language:
       description: |-
         Language selection is based on content-negotiation
-      in: header
       schema:
         type: string
-      name: Content-Language
   responses:
     Osservazioni:
       description: I dati vengono ritornati correttamente.
