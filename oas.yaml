@@ -13,7 +13,7 @@ servers:
     development server
   x-sandbox: true
 paths:
-  /observations/territorial-classification/{territorial_classification}/{territorial_classification_id}:
+  /observations/administrative-units/{administrative_unit_component}/{administrative_unit_component_id}:
     get:
       description: |-
         Recupera una serie di osservazioni associate ad una unità amministrativa,
@@ -35,7 +35,7 @@ paths:
         ai path.
       parameters:
       - $ref: '#/components/parameters/AcceptLanguage'
-      - name: territorial_classification
+      - name: administrative_unit_component
         description: |-
           Per scelta non utilizziamo un'alberatura gerarchica
           tra unità amministrative.
@@ -51,7 +51,7 @@ paths:
           example: regioni
         in: path
         required: true
-      - name: territorial_classification_id
+      - name: administrative_unit_component_id
         description: |-
           Le unità amministrative
           sono identificate attraverso i codici Istat.
@@ -64,6 +64,14 @@ paths:
             value: 10
         in: path
         required: true
+      - name: metadata
+        in: query
+        description: |-
+          Include Observations metadata in the `_meta` property. This includes
+          administrative_unit information.
+        schema:
+          type: boolean
+          default: false
       - name: embed
         schema:
           type: string
@@ -86,7 +94,7 @@ paths:
             $ref: '#/components/schemas/ObservationParameterId'
       responses:
        '200':
-          $ref: '#/components/responses/OsservazioniTerritorialClassification'
+          $ref: '#/components/responses/AdministrativeUnitObservations'
   /observation-parameters/{parameter_id}:
     get:
       description: |-
@@ -111,18 +119,18 @@ paths:
 components:
 
   examples:
-    TerritorialClassification:
+    AdministrativeUnit:
       summary: Una unità amministrativa
-      value: &TerritorialClassification
+      value: &AdministrativeUnitPerugia
         country_id: ITA
         country_name: Italia
-        region_id: '17'
-        region_name: Basilicata
-        province_id: '076'
-        province_name: Potenza
-        province_acronym: PZ
-        city_id: '076063'
-        city_name: Potenza
+        region_id: '10'
+        region_name: Umbria
+        province_id: '054'
+        province_name: Perugia
+        province_acronym: PG
+        city_id: '054039'
+        city_name: Perugia
     # GeoJson
     GeoUmbria: &GeoUmbria
       description:  https://ioggstream.github.io/api-confini-amministrativi/2020-01-01/generalizzata/comune/002082.geojson
@@ -138,50 +146,47 @@ components:
       value:
         <<: *GeoUmbria
         properties:
-          $ref: '#/components/examples/OsservazioniRegione/value'
+          $ref: '#/components/examples/ObservationsRegion/value'
     # CSV
     OsservazioniComuneAllCSV:
       summary: CSV Comune short
       description: Dati di un comune con tutti i campi possibili
       value: "
-        phenomenon_time,generation_time,ricoverati_con_sintomi,terapia_intensiva,totale_ospedalizzati,isolamento_domiciliare,totale_positivi,variazione_totale_positivi,nuovi_positivi,dimessi_guariti,deceduti,totale_casi,tamponi,casi_testati,\
-          codice_regione,denominazione_regione,\
-          codice_provincia,denominazione_provincia,\
-          codice_comune,denominazione_comune\n
-        2020-05-26,2020-05-20,076063,231,9,240,1369,1609,-62,4,1132,366,3107,48903,34428,\
-          10,Umbria,054,Perugia,054039,Perugia\n
+        phenomenon_time,administrative_unit,administrative_unit_id,\
+          positive_cases_with_date,in_intensive_care,cumulative_hospitalized,cumulative_positives,isolamento_domiciliare,variazione_totale_positivi,nuovi_positivi,dimessi_guariti,deceduti,totale_casi,tamponi,casi_testati\n
+        2020-05-26,comune,054039,231,9,240,1369,1609,-62,4,1132,366,3107,48903,34428\n
         "
-    OsservazioniRegioneCSV:
+    ObservationsRegionCSV:
       summary: Dati di una regione
       description: Non ci sono  dati relativi a comune e provincia
       value: |-
-        phenomenon_time,positive_cases_with_date,in_intensive_care,codice_regione,denominazione_regione
-        2020-05-20, 10, 4,10,Umbria
-        2020-05-21, 11, 3,10,Umbria
-        2020-05-22,  8, 5,10,Umbria
-    OsservazioniComuneCSV:
+        phenomenon_time,administrative_unit,administrative_unit_id,positive_cases_with_date,in_intensive_care,region_id,region_name
+        2020-05-20,regione,10, 10, 4,10,Umbria
+        2020-05-21,regione,10, 11, 3,10,Umbria
+        2020-05-22,regione,10,  8, 5,10,Umbria
+    ObservationsCityCSV:
       summary: Dati di un comune
       value: "\n
-        phenomenon_time,positive_cases_with_date,in_intensive_care,\
-          codice_regione,denominazione_regione,\
-          codice_provincia,denominazione_provincia,\
-          codice_comune,denominazione_comune\n
-        2020-05-20, 10, 4,10,Umbria,054,Perugia,054039,Perugia\n
-        2020-05-21, 11, 3,10,Umbria,054,Perugia,054039,Perugia\n
-        2020-05-22,  8, 5,10,Umbria,054,Perugia,054039,Perugia\n
+        phenomenon_time,administrative_unit,administrative_unit_id,positive_cases_with_date,in_intensive_care,\
+          region_id,region_name,\
+          province_id,province_name,\
+          city_id,city_name\n
+        2020-05-20,comune,054039, 10, 4,10,Umbria,054,Perugia,054039,Perugia\n
+        2020-05-21,comune,054039, 11, 3,10,Umbria,054,Perugia,054039,Perugia\n
+        2020-05-22,comune,054039,  8, 5,10,Umbria,054,Perugia,054039,Perugia\n
         "
     ObservationShort:
       summary: a single, short observation
       value: &ObservationShort
         phenomenon_time: 2020-05-26
         parameter_id: positive_cases_with_date
-        feature_of_interest_id: patient
         value: 10
-        value_measurement_unit: people
-    ObservationEmbed:
+    ObservationLong:
       summary: an Observation with _embed fields
-      value:
+      value: &ObservationLong
         <<: *ObservationShort
+        feature_of_interest_id: patient
+        value_measurement_unit: people
         _embedded:
           parameter:
               '@id': https://w3id.org/italia/data/observation-parameter/positive_cases_with_date
@@ -189,19 +194,15 @@ components:
           feature_of_interest:
             name: Paziente
             '@id': https://w3id.org/italia/data/feature-of-interest/patient
-    OsservazioneCompletaA1:
-      summary: Una osservazione con tutti i dettagli possibile
-      value:
-        $ref: '#/components/examples/ObservationEmbed/value'
-    OsservazioniRegione:
+    ObservationsRegion:
       summary: Osservazioni su una singola unità amministrativa.
-      value: &OsservazioniRegione
+      value: &ObservationsRegion
         _meta:
-          territorial_classification:
-            <<: *TerritorialClassification
+          administrative_unit_component:
+            <<: *AdministrativeUnitPerugia
           source:
-            codice_ipa: r_umbria
-            denominazione: Regione Umbria
+            IPA_code: r_umbria
+            description: Regione Umbria
             url: https://www.indicepa.gov.it/ricerca/n-dettaglioservfe.php?cod_amm=r_umbria
         items:
         - value: 4
@@ -223,37 +224,37 @@ components:
           generation_time: "2020-05-22"
           phenomenon_time: "2020-05-22"
           modified: "2020-05-22"
-        - $ref: '#/components/examples/OsservazioneCompletaA1/value'
-    OsservazioniRegioneGeo:
+        - <<: *ObservationLong
+    ObservationsRegionGeo:
       summary: geojson embedded
       value:
         type: Feature
         geometry: {}
         properties:
-          <<: *OsservazioniRegione
+          <<: *ObservationsRegion
   responses:
-    OsservazioniTerritorialClassification:
+    AdministrativeUnitObservations:
       description: |-
-        elenca le osservazioni con i parametri
+        Elenca delle collezioni di osservazioni 
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Observations'
           examples:
             Regione:
-              $ref: '#/components/examples/OsservazioniRegione'
+              $ref: '#/components/examples/ObservationsRegion'
         text/csv:
           examples:
             ComuneCSV:
-              $ref: '#/components/examples/OsservazioniComuneCSV'
+              $ref: '#/components/examples/ObservationsCityCSV'
             RegioneCSV:
-              $ref: '#/components/examples/OsservazioniRegioneCSV'
+              $ref: '#/components/examples/ObservationsRegionCSV'
         application/geo+json:
           schema:
             $ref: '#/components/schemas/GeoJsonData'
           examples:
             RegioneGeo:
-              $ref: '#/components/examples/OsservazioniRegioneGeo'
+              $ref: '#/components/examples/ObservationsRegionGeo'
   parameters:
     AcceptLanguage:
       description: |-
@@ -273,20 +274,9 @@ components:
         - $ref: '#/components/schemas/GeoJsonFeature'
         - properties:
             properties:
-              $ref: '#/components/schemas/Osservazioni'
+              $ref: '#/components/schemas/Observations'
       example:
         $ref: '#/components/examples/ObservationGeo'
-    Osservazioni:
-      type: object
-      description: |-
-        Un oggetto contenente una serie di osservazioni.
-      properties:
-        location:
-          $ref: '#/components/schemas/TerritorialClassification'
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/Observation'
     Observations:
       properties:
         _meta:
@@ -299,8 +289,8 @@ components:
       description: |-
         I metadati associati alla collezione di osservazioni.
       properties:
-        territorial_classification:
-          $ref: '#/components/schemas/TerritorialClassification'
+        administrative_unit_component:
+          $ref: '#/components/schemas/AdministrativeUnit'
         phenomenon_date_start:
           type: string
           format: date-time
@@ -319,7 +309,7 @@ components:
              isolamento_domiciliare,totale_positivi,variazione_totale_positivi,nuovi_positivi,dimessi_guariti,
              deceduti,totale_casi,tamponi,casi_testati]
     ObservationParameter:
-      x-onto: https://w3id.org/italia/onto/IoT/ObservationParameter
+      x-describedby: https://w3id.org/italia/onto/IoT/ObservationParameter
       description: |-
         Rappresenta un parametro (proprietà) dell'osservazione
         di una caratteristica di interesse. Per esempio, se diciamo che
@@ -405,60 +395,60 @@ components:
               '@id': https://w3id.org/italia/data/observation-parameter/positive_cases_with_date
               name: casi sintomatici con data inizio sintomi
     MeasurementUnit:
-      x-onto: https://w3id.org/italia/data/measurement-unit
+      x-describedby: https://w3id.org/italia/data/measurement-unit
       type: string
       enum:
       - percentage
       - gauge
       description: |-
         See https://w3id.org/italia/data/measurement-unit for a vocabulary
-    TerritorialClassification:
+    AdministrativeUnit:
       type: object
       description: |-
         Una unità amministrativa con la sua descrizione.
-      example:
-        codice_stato: ITA
-        nome_stato: Italia
-        codice_regione: '17'
-        denominazione_regione: Basilicata
-        codice_provincia: '076'
-        denominazione_provincia: Potenza
-        sigla_provincia: PZ
-        denominazione_comune: Potenza
-        codice_comune: '076063'
+      example: &AdministrativeUnitExample
+        country_id: ITA
+        country_name: Italia
+        region_id: '10'
+        region_name: Umbria
+        province_id: '054'
+        province_name: Perugia
+        province_acronym: PG
+        city_id: '054039'
+        city_name: Perugia
       required:
-        - codice_stato
-        - codice_regione
+        - country_id
+        - region_id
       additionalProperties: true
       properties:
-        codice_stato:
+        country_id:
           type: string
           example: ITA
           description: >-
             vedi
-            https://github.com/italia/daf-ontologie-vocabolari-controllati/blob/master/VocabolariControllati/territorial-classifications/countries/italy/italy.ttl
-        nome_stato:
+            https://github.com/italia/daf-ontologie-vocabolari-controllati/blob/master/VocabolariControllati/administrative-unitss/countries/italy/italy.ttl
+        country_name:
           type: string
           example: Italia
-        codice_regione:
+        region_id:
           type: string
           example: '17'
-        denominazione_regione:
+        region_name:
           type: string
           example: Basilicata
-        codice_provincia:
+        province_id:
           type: string
           example: '076'
-        denominazione_provincia:
+        province_name:
           type: string
           example: Potenza
-        sigla_provincia:
+        province_acronym:
           type: string
           example: PZ
-        denominazione_comune:
+        city_name:
           type: string
           example: Potenza
-        codice_comune:
+        city_id:
           type: string
           description: |-
             Codice Istat alfanumerico del comune.
