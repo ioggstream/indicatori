@@ -178,6 +178,7 @@ components:
       summary: an Observation with _embed fields
       value: &ObservationLong
         <<: *ObservationShort
+        generation_time: "2020-05-22"
         feature_of_interest_id: patient
         value_measurement_unit: people
         _embedded:
@@ -241,11 +242,17 @@ components:
           $ref: '#/components/examples/ObservationsRegion/value'
     ObservationsRegionGeo:
       summary: geojson embedded
-      value:
+      value: &ObservationsRegionGeo
         type: Feature
         geometry: {}
         properties:
           <<: *ObservationsRegion
+    FeatureCollection:
+      summary: A geojson collection with observation-parameter data
+      value:
+        type: FeatureCollection
+        features:
+          - <<: *ObservationsRegionGeo
   responses:
     AdministrativeUnitDatasets:
       description: |-
@@ -267,8 +274,8 @@ components:
           schema:
             $ref: '#/components/schemas/GeoJsonData'
           examples:
-            RegioneGeo:
-              $ref: '#/components/examples/ObservationsRegionGeo'
+            FeatureCollection:
+              $ref: '#/components/examples/FeatureCollection'
   parameters:
     AcceptLanguage:
       description: |-
