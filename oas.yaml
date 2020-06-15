@@ -13,7 +13,7 @@ servers:
     development server
   x-sandbox: true
 paths:
-  /observations/administrative-units/{administrative_unit_component}/{administrative_unit_component_id}:
+  /observations/administrative-units/{administrative_unit}/{administrative_unit_id}:
     get:
       description: |-
         Recupera una serie di osservazioni associate ad una unità amministrativa,
@@ -33,15 +33,18 @@ paths:
         o ad altre tipologie di dato aggiungendo nuovi endpoint,
         o profilando tramite schemi autorizzativi (eg. openid connect) l'accessso
         ai path.
+
+        Se i dati recuperabili da questo endpoint sono tutti pubblici, è possibile fare
+        caching sulle ricerche includendo anche i query-parameter. Se una parte dei dati deve essere
+        erogata tramite schemi autorizzativi il caching andrebbe o disabilitato o delegato a degli
+        endpoint destinati a profili pubblici.
       parameters:
       - $ref: '#/components/parameters/AcceptLanguage'
-      - name: administrative_unit_component
+      - name: administrative_unit
         description: |-
-          Per scelta non utilizziamo un'alberatura gerarchica
-          tra unità amministrative.
-
-          Q: Come recupero i dati di tutte le province
-             di una regione?
+          The type of administrative unit, related to the
+          https://github.com/italia/daf-ontologie-vocabolari-controllati/tree/master/VocabolariControllati/territorial-classifications
+          vocabulary, in italian.
         schema:
           type: string
           enum:
@@ -51,11 +54,9 @@ paths:
           example: regioni
         in: path
         required: true
-      - name: administrative_unit_component_id
+      - name: administrative_unit_id
         description: |-
-          Le unità amministrative
-          sono identificate attraverso i codici Istat.
-          Nell'esempio indichiamo l'Umbria.
+          Administrative units use the Istat identifier.
         schema:
           type: string
         examples:
@@ -72,16 +73,25 @@ paths:
         schema:
           type: boolean
           default: false
+      - name: recurse
+        in: query
+        description: |-
+          Returns observations from sub-administration units, eg. provinces and cities.
+          This feature can be disabled or delegated to another endpoint.
+          Json responses are enveloped in an object supporting the return of multiple datasets.
+        schema:
+          type: boolean
+          default: false
       - name: embed
         schema:
           type: string
         in: query
-      - name: phenomenon_date_start
+      - name: phenomenon_time_start
         in: query
         schema:
           type: string
           format: date-time
-      - name: phenomenon_date_end
+      - name: phenomenon_time_end
         in: query
         schema:
           type: string
@@ -94,12 +104,11 @@ paths:
             $ref: '#/components/schemas/ObservationParameterId'
       responses:
        '200':
-          $ref: '#/components/responses/AdministrativeUnitObservations'
+          $ref: '#/components/responses/AdministrativeUnitDatasets'
   /observation-parameters/{parameter_id}:
     get:
       description: |-
-        Recupera le informazioni su un parameter indicando
-        l'esatta semantica.
+        This endpoint helps to identify the semantic definition of an observation parameter.
       parameters:
       - $ref: '#/components/parameters/AcceptLanguage'
       - name: parameter_id
@@ -109,7 +118,7 @@ paths:
         required: true
       responses:
         "200":
-           description: Un parametro
+           description: Returns the information on a parameter.
            content:
              application/json:
                schema:
@@ -131,22 +140,6 @@ components:
         province_acronym: PG
         city_id: '054039'
         city_name: Perugia
-    # GeoJson
-    GeoUmbria: &GeoUmbria
-      description:  https://ioggstream.github.io/api-confini-amministrativi/2020-01-01/generalizzata/comune/002082.geojson
-      summary: Una regione
-      value:
-        type: "Feature"
-        geometry:
-          type: "Polygon"
-          coordinates: []
-        properties: {}
-    ObservationGeo:
-      summary: embedded geojson
-      value:
-        <<: *GeoUmbria
-        properties:
-          $ref: '#/components/examples/ObservationsRegion/value'
     # CSV
     OsservazioniComuneAllCSV:
       summary: CSV Comune short
@@ -198,7 +191,7 @@ components:
       summary: Osservazioni su una singola unità amministrativa.
       value: &ObservationsRegion
         _meta:
-          administrative_unit_component:
+          administrative_unit:
             <<: *AdministrativeUnitPerugia
           source:
             IPA_code: r_umbria
@@ -225,6 +218,27 @@ components:
           phenomenon_time: "2020-05-22"
           modified: "2020-05-22"
         - <<: *ObservationLong
+    DatasetRegion:
+      summary: Il dataset di una regione.
+      value: &DatasetRegion
+        items:
+          - <<: *ObservationsRegion
+    # GeoJson
+    GeoUmbria: &GeoUmbria
+      description:  https://ioggstream.github.io/api-confini-amministrativi/2020-01-01/generalizzata/comune/002082.geojson
+      summary: A geojson region
+      value:
+        type: "Feature"
+        geometry:
+          type: "Polygon"
+          coordinates: []
+        properties: {}
+    ObservationGeo:
+      summary: embedded geojson
+      value:
+        <<: *GeoUmbria
+        properties:
+          $ref: '#/components/examples/ObservationsRegion/value'
     ObservationsRegionGeo:
       summary: geojson embedded
       value:
@@ -233,16 +247,16 @@ components:
         properties:
           <<: *ObservationsRegion
   responses:
-    AdministrativeUnitObservations:
+    AdministrativeUnitDatasets:
       description: |-
         Elenca delle collezioni di osservazioni 
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Observations'
+            $ref: '#/components/schemas/ObservationDataset'
           examples:
             Regione:
-              $ref: '#/components/examples/ObservationsRegion'
+              $ref: '#/components/examples/DatasetRegion'
         text/csv:
           examples:
             ComuneCSV:
@@ -285,26 +299,35 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Observation'
+    ObservationDataset:
+      description: |-
+        An ObservationDataset contains a list of Observations: one for
+        each AdministrativeUnit.
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Observations'
     Metadata:
       description: |-
-        I metadati associati alla collezione di osservazioni.
+        Metadata associated to a given observation collection.
       properties:
-        administrative_unit_component:
+        administrative_unit:
           $ref: '#/components/schemas/AdministrativeUnit'
-        phenomenon_date_start:
+        phenomenon_time_start:
           type: string
           format: date-time
-        phenomenon_date_end:
+        phenomenon_time_end:
           type: string
           format: date-time
         source:
           type: string
           format: uri
           description: |-
-            La sorgente da cui sono state recuperate le osservazioni
+            The information source.
     ObservationParameterId:
       type: string
-      description: a short string representing the parameter in a given namespace
+      description: A short string representing the parameter in a given namespace
       enum: [positive_cases_with_date, hospitalized-with-symptoms,in_intensive_care,totale_ospedalizzati,
              isolamento_domiciliare,totale_positivi,variazione_totale_positivi,nuovi_positivi,dimessi_guariti,
              deceduti,totale_casi,tamponi,casi_testati]
@@ -323,11 +346,11 @@ components:
         name:
           type: string
           description: |-
-            a long description of a parameter
+            A long description of the parameter.
         description:
           type: string
           description: |-
-            a very long and detailed description for a parameter.
+            A very long and detailed description of the parameter.
       example:
         "@id": https://w3id.org/italia/data/observation-parameter/positive_cases_with_date
         id: positive_cases_with_date
@@ -345,8 +368,7 @@ components:
       type: object
       additionalProperties: true
       description: |-
-        Una osservazione: è possibile aggiungere altri
-        parametri.
+        Una osservazione: è possibile aggiungere altre properties.
       required:
       - parameter_id
       - value
@@ -356,6 +378,8 @@ components:
           type: string
           format: url
         phenomenon_time:
+          description: |-
+            Temporal reference for the observation.
           type: string
           format: date-time
           example: 2020-05-26
@@ -370,7 +394,7 @@ components:
         feature_of_interest_id:
           type: string
           description: |-
-            The observed feature.
+            The observed feature, eg: a patient.
           format: url
         parameter_id:
           type: string
@@ -398,8 +422,8 @@ components:
       x-describedby: https://w3id.org/italia/data/measurement-unit
       type: string
       enum:
-      - percentage
-      - gauge
+      - meter
+      - units
       description: |-
         See https://w3id.org/italia/data/measurement-unit for a vocabulary
     AdministrativeUnit:
@@ -423,33 +447,25 @@ components:
       properties:
         country_id:
           type: string
-          example: ITA
           description: >-
             vedi
-            https://github.com/italia/daf-ontologie-vocabolari-controllati/blob/master/VocabolariControllati/administrative-unitss/countries/italy/italy.ttl
+            https://github.com/italia/daf-ontologie-vocabolari-controllati/blob/master/VocabolariControllati/administrative-units/countries/italy/italy.ttl
         country_name:
           type: string
           example: Italia
         region_id:
           type: string
-          example: '17'
         region_name:
           type: string
-          example: Basilicata
         province_id:
           type: string
-          example: '076'
         province_name:
           type: string
-          example: Potenza
         province_acronym:
           type: string
-          example: PZ
         city_name:
           type: string
-          example: Potenza
         city_id:
           type: string
           description: |-
             Codice Istat alfanumerico del comune.
-          example: '076063'
