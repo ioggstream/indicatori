@@ -299,6 +299,11 @@ components:
       example:
         $ref: '#/components/examples/ObservationGeo'
     Observations:
+      description: |-
+        This is a collection of observations, together with metadata useful
+        to define a set of common properties for all the observations.
+
+        For the AdministrativeUnit, metadata include locality information
       properties:
         _meta:
           $ref: '#/components/schemas/Metadata'
@@ -375,7 +380,31 @@ components:
       type: object
       additionalProperties: true
       description: |-
-        Una osservazione: è possibile aggiungere altre properties.
+        An Observation. This scheme is extensible and supports both a minimum set of information,
+        eg
+
+        ```
+        value: 4
+        parameter_id: in_intensive_care
+        phenomenon_time: "2020-05-20"
+        ```
+
+        and extensive data and metadata via the `_embed` property, together with a wide range of
+        time-related data, allowing to annotate the modification time of the value or the measurement_unit.
+
+        ```
+        generation_time: "2020-05-22"
+        modified: 2020-05-30
+        feature_of_interest_id: patient
+        value_measurement_unit: people
+        _embedded:
+          parameter:
+             '@id': https://w3id.org/italia/data/observation-parameter/positive_cases_with_date
+             name: symptomatic cases with start date of symptoms.
+         feature_of_interest:
+           name: Patient
+           '@id': https://w3id.org/italia/data/feature-of-interest/patient
+        ```
       required:
       - parameter_id
       - value
