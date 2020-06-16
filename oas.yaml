@@ -1,20 +1,72 @@
 openapi: 3.0.0
 info:
-  version: 1.1.1
-  title: bikeshed
+  version: 0.0.1beta
+  title: Bozza API esposizione osservazioni
+  x-summary: Osservazioni covid-19 per Unità Amministrativa
+  x-api-id: 6bd55174-6b64-4112-9d47-ed610b304cbf
+  termsOfService: https://null.example
+  contact:
+    name: Roberto Polli -
+    url: https://twitter.com/ioggstream
+    email: roberto@teamdigitale.governo.it
   description: |-
-    Nota sui formati:
-    
-     - il passaggio tra csv e json può richiedere la gestione applicativa
-       dei campi nan
+    Questa API permette di pubblicare delle collezioni di osservazioni di determinati parametri
+    associati a diverse unità amministrative con granularità griornaliera.
+
+    Le tipologie di unità amministrative supportate sono:
+    - comune, provinica (unità territoriale sovracomunale) regione.
+
+    Le osservazioni sono modellate utilizzanod l'ontologia italiana che permette di utilizzare
+    dei parametri univocamente determinati e dal significato ben definito.
+    Nella versione in beta attuale non è stato ancora definito il vocabolario dei parametri (observation parameter).
+    Gli erogatori possono col tempo aggiungere o rimuovere i parametri pubblicati.
+    La definizione dei parametri può essere recuperata tramite un apposito endpoint.
+    E' anche possibile ritornare insieme ad ogni singola osservazione dei metadati utili ad indicarne
+    il corretto significato.
+
+    Tramite la content-negotiation  ed i relativi header (Accept, Accept-Language) è possibile supportare:
+    - più lingue differenti (Eg. italiano e inglese);
+    - più media-type: application/json, application/geo+json e text/csv.
+    In particolare le response in geojson ritornano delle FeatureCollection dove ogni singola
+    collezione di dati è acclusa nelle properties di ogni feature.
+
+    Nota: una possibile semplificazione potrebbe permettere di ritornare un link al file geojson di riferimento.
+
+    La possibilità di fare ricerche è opzionale e supporta solo query limitate.
+
+    I path sono separati perché non è detto che la somma (eg. dei dati delle
+    province) corrisponda col totale
+
+    dei dati regionali a causa di possibili difficoltà nel campionamento o di
+    problematiche amministrative
+
+    (eg. trasferimenti, disallineamenti dovuti alla durata temporale dei
+    campionamenti, errori umani, ...).
 servers:
 - url: https://localhost/covid-19/v1
   description: |-
     development server
   x-sandbox: true
+tags:
+  - name: data
+    description: Returns data.
+  - name: metadata
+    description: Returns metadata.
+x-commons:
+  common-responses: &common-responses
+    default:
+      $ref: '#/components/responses/default'
+    "429":
+      $ref: '#/components/responses/429'
+    "503":
+      $ref: '#/components/responses/503'
+
+
 paths:
   /observations/administrative-units/{administrative_unit}/{administrative_unit_id}:
     get:
+      tags:
+        - data
       description: |-
         Recupera una serie di osservazioni associate ad una unità amministrativa,
         identificata dal codice istat.
@@ -38,6 +90,7 @@ paths:
         caching sulle ricerche includendo anche i query-parameter. Se una parte dei dati deve essere
         erogata tramite schemi autorizzativi il caching andrebbe o disabilitato o delegato a degli
         endpoint destinati a profili pubblici.
+      operationId: observations.get_administrative_unit_data
       parameters:
       - $ref: '#/components/parameters/AcceptLanguage'
       - name: administrative_unit
@@ -89,13 +142,11 @@ paths:
       - name: phenomenon_time_start
         in: query
         schema:
-          type: string
-          format: date-time
+          $ref: '#/components/schemas/Temporal'
       - name: phenomenon_time_end
         in: query
         schema:
-          type: string
-          format: date-time
+          $ref: '#/components/schemas/Temporal'
       - name: parameter_ids
         in: query
         schema:
@@ -105,10 +156,14 @@ paths:
       responses:
        '200':
           $ref: '#/components/responses/AdministrativeUnitDatasets'
+        <<: *common-responses
   /observation-parameters/{parameter_id}:
     get:
       description: |-
         This endpoint helps to identify the semantic definition of an observation parameter.
+      operationId: observations.get_parameter
+      tags:
+        - metadata
       parameters:
       - $ref: '#/components/parameters/AcceptLanguage'
       - name: parameter_id
@@ -117,6 +172,7 @@ paths:
         in: path
         required: true
       responses:
+        <<: *common-responses
         "200":
            description: Returns the information on a parameter.
            content:
@@ -254,6 +310,12 @@ components:
         features:
           - <<: *ObservationsRegionGeo
   responses:
+    "429":
+      $ref: 'https://teamdigitale.github.io/openapi/0.0.6/definitions.yaml#/responses/429TooManyRequests'
+    "503":
+      $ref: 'https://teamdigitale.github.io/openapi/0.0.6/definitions.yaml#/responses/503ServiceUnavailable'
+    default:
+      $ref: 'https://teamdigitale.github.io/openapi/0.0.6/definitions.yaml#/responses/default'
     AdministrativeUnitDatasets:
       description: |-
         Elenca delle collezioni di osservazioni 
@@ -327,16 +389,21 @@ components:
         administrative_unit:
           $ref: '#/components/schemas/AdministrativeUnit'
         phenomenon_time_start:
-          type: string
-          format: date-time
+          $ref: '#/components/schemas/Temporal'
         phenomenon_time_end:
-          type: string
-          format: date-time
+          $ref: '#/components/schemas/Temporal'
         source:
           type: string
           format: uri
           description: |-
             The information source.
+    Temporal:
+      description: A temporal data that can be a date or a date-time
+      oneOf:
+        - type: string
+          format: date
+        - type: string
+          format: date-time
     ObservationParameterId:
       type: string
       description: A short string representing the parameter in a given namespace
@@ -414,39 +481,29 @@ components:
           type: string
           format: url
         phenomenon_time:
-          description: |-
-            Temporal reference for the observation.
-          type: string
-          format: date-time
-          example: 2020-05-26
+          $ref: '#/components/schemas/Temporal'
         modified:
-          type: string
-          format: date-time
-          example: 2020-05-26
+          $ref: '#/components/schemas/Temporal'
         generation_time:
-          type: string
-          format: date-time
-          example: 2020-05-26
+          $ref: '#/components/schemas/Temporal'
         feature_of_interest_id:
           type: string
           description: |-
             The observed feature, eg: a patient.
-          format: url
         parameter_id:
           type: string
-          format: url
         value:
           type: number
+          format: int64
           example: 10
         value_measurement_unit:
           $ref: '#/components/schemas/MeasurementUnit'
       example:
-        id: https://w3id.org/italia/data/observation/A1
         phenomenon_time: 2020-05-26
         parameter_id: positive_cases_with_date
         feature_of_interest_id: patient
         value: 10
-        value_measurement_unit: unit
+        value_measurement_unit: units
         _embedded:
           parameter:
               '@id': https://w3id.org/italia/data/observation-parameter/positive_cases_with_date
@@ -460,8 +517,10 @@ components:
       enum:
       - meter
       - units
+      - people
       description: |-
         See https://w3id.org/italia/data/measurement-unit for a vocabulary
+        This is work-in-progress!
     AdministrativeUnit:
       type: object
       description: |-
